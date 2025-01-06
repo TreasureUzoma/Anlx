@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "analytix.vercel.app",
+        hostname: "analytixapp.vercel.app",
         pathname: "/**"
       }
     ]
