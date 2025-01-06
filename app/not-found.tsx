@@ -4,8 +4,8 @@ import Image from "next/image";
 const notFound = () => {
   return (
     <main>
-      <div className="fixed top-0 left-0 right-0 z-50 py-4 md:py-[0.6rem] bg-bright dark:bg-black border-b border-neutral-200 dark:border-neutral-900 px-4">
-        <Link href="/" className="flex_center gap-1">
+      <div className="fixed top-0 left-0 right-0 z-50 py-4 md:py-[0.6rem] bg-bright dark:bg-black border-b border-neutral-200 dark:border-neutral-900 px-4 flex items-center justify-between">
+        <Link href="/" className="flex items-center justify-center gap-1">
           <Image
             src="https://analytixapp.vercel.app/logo/white.png"
             width={23}
@@ -14,7 +14,7 @@ const notFound = () => {
             className="hidden dark:inline-block"
           />
           <Image
-            src="https://analytixsapp.vercel.app/logo/black.png"
+            src="https://analytixapp.vercel.app/logo/black.png"
             width={23}
             height={23}
             alt="Analytix Logo"

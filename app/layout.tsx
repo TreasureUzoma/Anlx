@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Anlx",
+  title: "Anlx - Link Shortener",
   description: "Powered by Anallytix.dev",
 };
 
