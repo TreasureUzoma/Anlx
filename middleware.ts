@@ -1,71 +1,100 @@
 import { NextRequest, NextResponse } from "next/server";
+import { UAParser } from "ua-parser-js";
 
 export async function middleware(req: NextRequest) {
-    const { pathname } = req.nextUrl;
+  const { pathname } = req.nextUrl;
 
-    // Redirect root path to the main app
-    if (pathname === "/") {
-        return NextResponse.redirect("https://analytixapp.vercel.app");
+  // Log the user data before any API request
+  const userAgentString = req.headers.get("user-agent");
+  if (!userAgentString) {
+    console.error("User-Agent header is missing");
+    return NextResponse.next(); // or handle this case as needed
+  }
+
+  const parser = new UAParser(userAgentString);
+
+  const deviceInfo = parser.getResult();
+
+  const userInfo = {
+    ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "0.0.0.0",
+    userAgent: userAgentString,
+    os: `${deviceInfo.os.name} ${deviceInfo.os.version}`,
+    device: deviceInfo.device.model || "Unknown Device",
+    browser: `${deviceInfo.browser.name} ${deviceInfo.browser.version}`,
+    time: Date.now(),
+    referringUrl: req.headers.get("referer") || "",
+  };
+
+  console.log("User data:", userInfo);
+
+  if (pathname === "/") {
+    return NextResponse.redirect("https://analytixapp.vercel.app");
+  }
+
+  const trackingCookie = req.cookies.get("trackingCookie");
+  const pathCookie = req.cookies.get("pathCookie");
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+  try {
+    const apiCheckResponse = await fetch(
+      `https://your-api.com/check-path?path=${pathname}`,
+      {
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    if (
+      !apiCheckResponse.ok ||
+      !apiCheckResponse.headers
+        .get("content-type")
+        ?.includes("application/json")
+    ) {
+      console.error(
+        `API validation failed for path: ${pathname}. Status: ${apiCheckResponse.status}`
+      );
+      return NextResponse.next();
     }
 
-    // Retrieve cookies for tracking and stored path
-    const trackingCookie = req.cookies.get("trackingCookie");
-    const pathCookie = req.cookies.get("pathCookie");
+    const apiCheckData = await apiCheckResponse.json();
 
-    // If tracking cookie exists, bypass further processing
-    if (trackingCookie) {
-        return NextResponse.next();
+    if (apiCheckData.valid) {
+      const redirectUrl = apiCheckData.url;
+
+      if (!trackingCookie) {
+        await fetch("https://your-api.com/send-user-info", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userInfo, pathname }),
+        });
+      }
+
+      const response = NextResponse.redirect(redirectUrl);
+      response.cookies.set("trackingCookie", "true", {
+        maxAge: 60 * 60 * 24 * 2,
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+      }); // 2 days
+      response.cookies.set("pathCookie", pathname, {
+        maxAge: 60 * 60 * 1,
+        httpOnly: true,
+        secure: true,
+        sameSite: "strict",
+      }); // 1 hour
+
+      return response;
     }
-
-    try {
-        // Validate the pathname with an API
-        const apiCheckResponse = await fetch(`https://your-api.com/check-path?path=${pathname}`);
-
-        // Check if the response is JSON
-        if (!apiCheckResponse.ok || apiCheckResponse.headers.get("content-type")?.includes("application/json") === false) {
-            console.error(`Invalid response from API for path: ${pathname}. Status: ${apiCheckResponse.status}`);
-            return NextResponse.next(); // Skip further processing on error
-        }
-
-        const apiCheckData = await apiCheckResponse.json();
-
-        if (apiCheckData.valid) {
-            const redirectUrl = apiCheckData.url;
-
-            // Collect user information
-            const userInfo = {
-                ip: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "0.0.0.0",
-                userAgent: req.headers.get("user-agent"),
-                time: Date.now(),
-                referringUrl: req.headers.get("referer") || "",
-            };
-
-            // Send user data to another API
-            await fetch("https://your-api.com/send-user-info", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ userInfo, pathname }),
-            });
-
-            // Set cookies for tracking and pathname storage
-            const response = NextResponse.redirect(redirectUrl);
-            response.cookies.set("trackingCookie", "true", {
-                maxAge: 60 * 60 * 24 * 2, // 2 days
-                httpOnly: true,
-                secure: true,
-            });
-            response.cookies.set("pathCookie", pathname, {
-                maxAge: 60 * 60 * 24 * 2, // 2 days
-                httpOnly: true,
-                secure: true,
-            });
-
-            return response;
-        }
-    } catch (error) {
-        console.error("Error processing middleware:", error);
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error("Error in middleware processing:", error.message);
+    } else {
+      console.error("Unknown error occurred:", error);
     }
+  }
 
-    // Default: Proceed to the next middleware or request handler
-    return NextResponse.next();
+  return NextResponse.next();
 }
