@@ -37,9 +37,14 @@ export async function middleware(req: NextRequest) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 5000);
 
+  const checkApi = process.env.CHECK_API || "";
+  const recApi = process.env.SEND_API || "";
+
+  console.log(recApi)
+
   try {
     const apiCheckResponse = await fetch(
-      `https://your-api.com/check-path?path=${pathname}`,
+      `${checkApi}${pathname}`,
       {
         signal: controller.signal,
       }
@@ -65,7 +70,7 @@ export async function middleware(req: NextRequest) {
       const redirectUrl = apiCheckData.url;
 
       if (!trackingCookie) {
-        await fetch("https://your-api.com/send-user-info", {
+        await fetch(recApi, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ userInfo, pathname }),
