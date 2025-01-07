@@ -32,7 +32,7 @@ const notFound = () => {
           </h1>
           <p className="text-sm font-medium">
             This is a <b>404</b> error, which means you&apos;ve clicked on a
-            wrong or bad URL. Maybe what you are loocing for can be found at{" "}
+            wrong or bad URL. Maybe what you are looking for can be found at{" "}
             <Link href="/" className="underline hover:text-[#4f1787]">
               analytix.dev
             </Link>
